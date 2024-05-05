@@ -1,0 +1,12 @@
+
+numpy
+pandas
+matplotlib
+scikit-learn
+torch
+opencv-python-headless
+Pillow
+pyyaml
+requests
+roboflow
+ultralytics==8.2.6
