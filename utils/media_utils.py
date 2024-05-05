@@ -23,10 +23,12 @@ def display_video(video_path):
 
 def download_video(video_url, save_path):
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    print(f"Starting download from: {video_url}\n")
     response = requests.get(video_url)
     if response.status_code == 200:
         with open(save_path, 'wb') as file:
             file.write(response.content)
+        print(f"Download completed. Video saved to: {save_path}\n")
     else:
         print("Failed to download video from:", video_url)
 

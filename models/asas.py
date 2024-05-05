@@ -59,7 +59,11 @@ class ASAS(YOLO):
 
     def track_video(self, video_path, tracker_config='bytetrack.yaml', persist=True, save=True, conf=0.5, iou=0.7,
                     show=False):
-        print(f"----------Started: Running ASAS Tracking ----------")
+        print(f"\n----------Started: Running ASAS Tracking ----------\n")
+        print(f"Tracking video: {video_path}")
+        print(f"Using tracker config: {tracker_config}")
+        print(f"Detection confidence threshold: {conf}, IOU threshold: {iou}")
+        print(f"Persist results: {'Yes'  if persist else 'No'}, Save output: {'Yes' if save else 'No'}, Show results: {'Yes' if show else 'No'}\n")
         if not os.path.exists(video_path):
             raise FileNotFoundError(f"Video file not found: {video_path}")
 
@@ -81,13 +85,33 @@ class ASAS(YOLO):
         finally:
             sys.stdout.close()
             sys.stdout = original_stdout
-        print(f"----------Completed: Running ASAS Tracking ----------")
+        print(f"\n----------Completed: Running ASAS Tracking ----------\n")
         return results
+
+    def welcome_message(self):
+        print("┌─────────────────────────────────────────────────────────────────┐")
+        print("│                                                                 │")
+        print("│             Welcome to AI Sports Analytics Systems (ASAS)       │")
+        print("│                                                                 │")
+        print("│                         By                                      │")
+        print("│                         Devansh Vaid                            │")
+        print("│                         George Valan                            │")
+        print("│                         Kum Gaon                                │")
+        print("│                         Santoshkumar Nateekar                   │")
+        print("│                                                                 │")
+        print("│                 Advisor: Prof. Dr. Sanja Damjanovic             │")
+        print("│                                                                 │")
+        print("└─────────────────────────────────────────────────────────────────┘")
+        print("\n")
+
+
 
     def run_analytics(self, video_url, local_save_path, analysis_type, display_video=False):
 
         # Initialize ASASAnalytics to hold the result of analytics
         asas_analytics = ASASAnalytics()
+
+        self.welcome_message()
 
         # Download the input video clip
         media_utils.download_video(video_url, local_save_path)
@@ -109,7 +133,7 @@ class ASAS(YOLO):
         # Display annotated video
         if display_video:
             if not os.path.exists(mp4_output_path):  # Check if MP4 already exists to avoid re-conversion
-                self.convert_video_to_mp4(avi_path, mp4_output_path)
+                media_utils.convert_video_to_mp4(avi_path, mp4_output_path)
             media_utils.display_video(mp4_output_path)
 
         if analysis_type == 'BALL_POSSESSION':
