@@ -15,18 +15,20 @@ class ASAS(YOLO):
 
     def __init__(self, asas_model_path, fps=30, team_a_color='black', team_b_color='white', ball_in_air_threshold=50, device='cpu'):
         """
-        Init method
+        Initialize the ASAS model.
 
-        :param asas_model_path:
-        :param fps:
-        :param team_a_color:
-        :param team_b_color:
+        Parameters:
+        asas_model_path (str): Path to the trained model file.
+        fps (int): Frames per second of the video to be analyzed.
+        team_a_color (str): Color representing team A.
+        team_b_color (str): Color representing team B.
         :param ball_in_air_threshold:
         """
 
         # self.model = YOLO(asas_model_path)
         super().__init__(asas_model_path)
-        self.to(torch.device(device))
+        self.to(device)  # Move model to the appropriate device
+        #self.to(torch.device(device))
         self.frame_rate = fps
         self.TEAM_A_COLOR = colors.COLOR_MAP[team_a_color]
         self.TEAM_B_COLOR = colors.COLOR_MAP[team_b_color]
@@ -44,6 +46,16 @@ class ASAS(YOLO):
         self.ball_in_air_threshold = 150
 
         self.yolo_tracking_results = None
+
+    
+    @staticmethod
+    def get_device():
+        """Determine the best device to run the model on."""
+        if torch.cuda.is_available():
+            return 'cuda'
+        elif hasattr(torch, 'has_mps') and torch.has_mps:  # Check if the attribute exists and is True
+            return 'mps'
+        return 'cpu'
 
     def track_video(self, video_path, tracker_config='bytetrack.yaml', persist=True, save=True, conf=0.5, iou=0.7,
                     show=False):

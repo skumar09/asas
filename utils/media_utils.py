@@ -3,7 +3,7 @@ import subprocess
 from base64 import b64encode
 
 import requests
-from IPython.core.display_functions import display
+from IPython.display import display
 from IPython.display import HTML
 
 
