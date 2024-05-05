@@ -109,9 +109,7 @@ class ASAS(YOLO):
     def run_analytics(self, video_url, local_save_path, analysis_type, display_video=False):
 
         # Initialize ASASAnalytics to hold the result of analytics
-        asas_analytics = ASASAnalytics()
-
-        self.welcome_message()
+        asas_analytics = ASASAnalytics()      
 
         # Download the input video clip
         media_utils.download_video(video_url, local_save_path)
@@ -172,7 +170,7 @@ class ASAS(YOLO):
         return asas_analytics
 
     def analyze_ball_possession(self, yolo_tracking_results):
-        ball_possession_analyzer = BallPossessionAnalyzer(team_a_color='black', team_b_color='white',
+        ball_possession_analyzer = BallPossessionAnalyzer(team_a_color='blue', team_b_color='white',
                                                           ball_in_air_threshold=self.ball_in_air_threshold,
                                                           frame_rate=self.frame_rate, confidence=0.5)
         ball_possession_result = ball_possession_analyzer.analyze(yolo_tracking_results)
