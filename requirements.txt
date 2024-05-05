@@ -8,5 +8,6 @@ opencv-python-headless
 Pillow
 pyyaml
 requests
-roboflow
 ultralytics==8.2.6
+IPython
+roboflow
