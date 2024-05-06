@@ -5,9 +5,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-from analytics_engine.results import BallPossessionResult, BallTrajectoryResult
+from analytics_engine.results import BallPossessionResult, BallTrajectoryResult, FieldGoalDetectionResult
 from config import colors
 
+from scipy.spatial.distance import euclidean
+from shapely.geometry import LineString, Polygon
 
 class BallPossessionAnalyzer:
     def __init__(self, team_a_color='black', team_b_color='white', ball_in_air_threshold=50, frame_rate=30, confidence=0.5):
@@ -273,3 +275,181 @@ class BallTrajectoryAnalyzer:
                     team_possession.append(self.bp_frame_color.get(index, 'green'))
             index += 1
         return offset_ball_centroid_tracker, offset_net_centroid_tracker, team_possession
+
+
+class FieldGoalDetector:
+    def __init__(self, yolo_tracking_results, range_min, range_max, tolerance):
+        self.yolo_tracking_results = yolo_tracking_results
+        self.range_min = range_min
+        self.range_max = range_max
+        self.tolerance = tolerance # How much should we widen bounding boxes for overlap detection?
+        self.raw_features = None
+        self.interesting_frames = None
+        self.prepared_features = None
+        self.field_goal_frame = None
+
+    def generate_box_features(self):
+        print('Generating Bounding Box Features')
+        bounding_boxes = self.yolo_tracking_results
+        # Iterate through the frames of the video
+        raw_features = []
+        for i_frame, snapshot in enumerate(bounding_boxes):
+            classes = {value: key for key, value in bounding_boxes[0].names.items()}
+            boxes = snapshot.boxes.cpu()
+            i_bb = (boxes.cls == classes['basketball']).nonzero(as_tuple=True)[0]
+            i_net = (boxes.cls == classes['net']).nonzero(as_tuple=True)[0]
+
+            # Skip if either the ball or the net are missing
+            if len(boxes.xywh[i_bb]) == 0 or len(boxes.xywh[i_net]) == 0:
+                continue
+
+            # Get center positions of the bounding boxes for the net and the ball
+            # Use the index with the highest confidence
+            confs = boxes.conf.cpu().numpy()
+            pos_bb = boxes.xywh[i_bb][np.argmax(confs[i_bb])]
+            pos_net = boxes.xywh[i_net][np.argmax(confs[i_net])]
+            box_net = boxes.xyxy[i_net][np.argmax(confs[i_net])]
+            # Height of video, used to convert to more human-readable positioning
+            h = snapshot.orig_shape[1]
+            try:
+                x_bb = pos_bb[0].numpy()
+                x_net = pos_net[0].numpy()
+                y_bb = (h - pos_bb[1]).numpy()
+                y_net = (h - pos_net[1]).numpy()
+                diff = euclidean([x_bb, y_bb], [x_net, y_net])
+                re_box_net = box_net.numpy()
+                re_box_net[1] = h - re_box_net[1]
+                re_box_net[3] = h - re_box_net[3]
+                raw_features.append((i_frame, diff, x_bb.item(), y_bb.item(), *re_box_net))
+            except:
+                print(f'Error on Frame {i_frame}')
+                continue
+        self.raw_features = raw_features
+        return raw_features
+
+
+    # Selects the frame where the ball and net are closest, and selects surrounding
+    # frames such that there are self.range_min frames of note prior to when the
+    # two elements are closest and self.range_max frames prior.
+    def find_interesting_frames(self):
+        print('Finding Interesting Frames')
+        if not self.raw_features:
+            self.generate_box_features()
+        raw_features = self.raw_features
+        i_closest = np.argmin([x[1] for x in raw_features])
+        self.field_goal_frame = raw_features[i_closest][0]
+        adjusted_min = i_closest - self.range_min - 1
+        adjusted_max = i_closest + self.range_max + 1
+        interesting_frames = raw_features[adjusted_min:adjusted_max]
+        self.interesting_frames = interesting_frames
+        return interesting_frames
+
+
+    def prepare_field_goal_features(self):
+        """
+        # Input Format:
+        #   0: Frame Number from Source
+        #   1: distance between centers
+        #   2: x_bb
+        #   3: y_bb
+        #   4: x_top_left_net
+        #   5: y_top_left_net
+        #   6: x_bottom_right_net
+        #   7: y_bottom_right_net
+
+        Returns: A set of features that indicate whether a field goal was made
+        """
+        print('Preparing Field Goal Features')
+        if not self.interesting_frames:
+            self.find_interesting_frames()
+        interesting_frames = self.interesting_frames
+
+        # Binary arrays that track whether a feature applies to a co-indexed frame
+        within_net = [0] * len(interesting_frames)
+        track_above_net = [0] * len(interesting_frames)
+        track_below_net = [0] * len(interesting_frames)
+        trajectory_matching = [0] * len(interesting_frames)
+        last_frame = None
+
+        for i, frame in enumerate(interesting_frames):
+            # Check if basketball's center is within the net with tolerance
+            tol = self.tolerance
+            x_bb = frame[2]
+            y_bb = frame[3]
+            left_edge_net = frame[4]
+            right_edge_net = frame[6]
+            top_edge_net = frame[5]
+            bottom_edge_net = frame[7]
+
+            # Some useful boolean meta-features
+            within_x = x_bb >= left_edge_net - tol and x_bb <= right_edge_net + tol
+            within_y = y_bb <= top_edge_net + tol and y_bb >= bottom_edge_net - tol
+            ball_above_net = y_bb >= top_edge_net - tol
+            ball_below_net = y_bb <= bottom_edge_net + tol
+            if i == 0:
+                intersects = -1
+            else:
+                old_x = last_frame[2]
+                old_y = last_frame[3]
+                line = LineString([(x_bb, y_bb), (old_x, old_y)])
+                rectangle = Polygon(
+                    [
+                        (frame[4], frame[5]),
+                        (frame[4], frame[7]),
+                        (frame[6], frame[5]),
+                        (frame[6], frame[7])
+                    ]
+                )
+                intersects = line.intersects(rectangle)
+
+            # Output boolean decision factors
+            within_net[i] = int(within_x and within_y)
+            track_above_net[i] = int(within_x and ball_above_net)
+            track_below_net[i] = int(within_x and ball_below_net)
+            trajectory_matching[i] = int(intersects)
+            last_frame = frame
+
+        prepared_features = {
+            'within_net': within_net,
+            'above_net': track_above_net,
+            'below_net': track_below_net,
+            'points_to_net': trajectory_matching
+        }
+        self.prepared_features = prepared_features
+        return prepared_features
+
+
+    def detect_field_goal(self):
+        """
+        Sets the probability of a field goal being in the video as the number of active
+        detected signals divided by the total number of signals.
+        Signals include ball and net overlap, 
+        """
+        'Detecting Field Goal'
+        if not self.prepared_features:
+            self.prepare_field_goal_features()
+        feature_tracks = self.prepared_features
+        feature_set = {}
+        feature_set['overlaps'] = int(any(feature_tracks['within_net']))
+
+        found_above = False
+        found_below_after_above = False
+        point_to_net_from_above = False
+        for frame in zip(feature_tracks['above_net'], feature_tracks['below_net'], feature_tracks['points_to_net']):
+            if not found_above and frame[0] == 1:
+                found_above = True
+            elif found_above:
+                if frame[1] == 1:
+                    found_below_after_above = True
+                if frame[2] == 1:
+                    point_to_net_from_above = True
+        feature_set['above_and_below'] = int(found_below_after_above)
+        feature_set['goes_through_net_directly'] = int(point_to_net_from_above)
+
+        p_fgm = 1.0 * sum(feature_set.values()) / len(feature_set.values())
+        interesting_frames = list(map(lambda x: x[0], self.interesting_frames))
+        field_goal_frame = self.field_goal_frame
+
+        print(f"Field Goal Detection\n\tP(FGM): {p_fgm}\n\tFrames: {interesting_frames}\n\tKey Frame: {field_goal_frame}")
+        return FieldGoalDetectionResult(p_fgm, interesting_frames, field_goal_frame)
+

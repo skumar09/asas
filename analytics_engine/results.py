@@ -117,8 +117,17 @@ class BallTrajectoryResult:
     #     plt.title('Ball & Net position')
 
 
+class FieldGoalDetectionResult:
+    # fgm = Field Goal Made = A successful basketball shot
+    def __init__(self, probability_fgm, interesting_frame_indices, field_goal_frame):
+        self.probability_fgm = probability_fgm
+        self.interesting_frame_indices = interesting_frame_indices
+        self.fgm_frame = field_goal_frame
+
+
 class ASASAnalytics:
     def __init__(self):
         self.yolo_tracking_results = None
         self.ball_possession_result = None
         self.ball_trajectory_result = None
+        self.field_goal_detection_result = None

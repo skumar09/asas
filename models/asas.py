@@ -5,7 +5,7 @@ import sys
 import torch
 from ultralytics import YOLO
 
-from analytics_engine.analyzer import BallPossessionAnalyzer, BallTrajectoryAnalyzer
+from analytics_engine.analyzer import BallPossessionAnalyzer, BallTrajectoryAnalyzer, FieldGoalDetector
 from analytics_engine.results import ASASAnalytics
 from config import colors
 from utils import media_utils
@@ -26,6 +26,7 @@ class ASAS(YOLO):
         """
 
         # self.model = YOLO(asas_model_path)
+        self.model_path = asas_model_path
         super().__init__(asas_model_path)
         self.to(device)  # Move model to the appropriate device
         #self.to(torch.device(device))
@@ -46,6 +47,11 @@ class ASAS(YOLO):
         self.ball_in_air_threshold = 150
 
         self.yolo_tracking_results = None
+
+
+    def set_model_path(self, new_model_path):
+        self.model_path = new_model_path
+        self.load(new_model_path)
 
     
     @staticmethod
@@ -120,6 +126,7 @@ class ASAS(YOLO):
 
         self.yolo_tracking_results = self.yolo_tracking_results if self.yolo_tracking_results else self.track_video(local_save_path)
         asas_analytics.yolo_tracking_results = self.yolo_tracking_results
+        asas_analytics.field_goal_detection_results = self.detect_field_goal_frames(self.yolo_tracking_results)
 
         # Extract the base filename without extension to construct output paths
         base_filename = os.path.splitext(os.path.basename(local_save_path))[0]
@@ -141,6 +148,7 @@ class ASAS(YOLO):
             team_possession = ball_possession_result.team_possession
             bp_frame_color = ball_possession_result.bp_frame_color
 
+            # TODO Report p_fgm
             print(f'\n----------VIDEO ANALYSIS-------------\n')
             print(f"1. Unique basketball ID: {tpr['basketball_id']}")
             print(f"2. Unique player IDs (filtered): {tpr['player_ids']}")
@@ -168,6 +176,16 @@ class ASAS(YOLO):
             asas_analytics.ball_trajectory_result = ball_trajectory_result
 
         return asas_analytics
+
+
+    def detect_field_goal_frames(self, yolo_tracking_results):
+        range_min = 10
+        range_max = 5
+        tolerance = 15
+        field_goal_detector = FieldGoalDetector(yolo_tracking_results, range_min, range_max, tolerance)
+        field_goal_result = field_goal_detector.detect_field_goal()
+        return field_goal_result
+
 
     def analyze_ball_possession(self, yolo_tracking_results):
         ball_possession_analyzer = BallPossessionAnalyzer(team_a_color='blue', team_b_color='white',
