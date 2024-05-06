@@ -43,7 +43,7 @@ class BallTrajectoryResult:
         self.reference_frame_img = reference_frame_img
         self.reference_net_xywh = reference_net_xywh
 
-    def plot_ball_and_net_wrto_net_position(self):
+    def plot_ball_and_net_wrto_net_position(self, filter_negative_offsets = True):
         plt.figure(figsize=(30, 12))
 
         image_rgb = cv2.cvtColor(self.reference_frame_img, cv2.COLOR_BGR2RGB)
@@ -56,10 +56,22 @@ class BallTrajectoryResult:
         first_net_corners_x, first_net_corners_y = get_bounding_box_corners(self.reference_net_xywh[0], self.reference_net_xywh[1], self.reference_net_xywh[2], self.reference_net_xywh[3])
         plt.plot(first_net_corners_x, first_net_corners_y, color='red', linewidth=2)
 
+        offset_ball_centroid_tracker = self.offset_ball_centroid_tracker
+        team_possession = self.team_possession
+        if filter_negative_offsets:
+            offset_ball_centroid_tracker = []
+            team_possession = []
+            for i in range(len(self.offset_ball_centroid_tracker) - 1):
+                centroid = self.offset_ball_centroid_tracker[i]
+                if (centroid[0] > 0 and centroid[1] > 0):
+                    offset_ball_centroid_tracker.append(centroid)
+                    team_possession.append(self.team_possession[i])
+
+
         # Plot the position of ball on the field
-        x_ball = [centroid[0] for centroid in self.offset_ball_centroid_tracker]
-        y_ball = [centroid[1] for centroid in self.offset_ball_centroid_tracker]
-        plt.scatter(x_ball, y_ball, marker='o', color=self.team_possession)
+        x_ball = [centroid[0] for centroid in offset_ball_centroid_tracker]
+        y_ball = [centroid[1] for centroid in offset_ball_centroid_tracker]
+        plt.scatter(x_ball, y_ball, marker='o', color=team_possession)
 
         # Plot the position of net on the field
         x_net = [centroid[0] for centroid in self.offset_net_centroid_tracker]
@@ -69,7 +81,7 @@ class BallTrajectoryResult:
         # Plotting arrows between points
         for i in range(len(x_ball) - 1):
             plt.arrow(x_ball[i], y_ball[i], x_ball[i + 1] - x_ball[i], y_ball[i + 1] - y_ball[i],
-                      shape='full', lw=0.5, length_includes_head=True, head_width=7.5, color=self.team_possession[i])
+                      shape='full', lw=0.5, length_includes_head=True, head_width=7.5, color=team_possession[i])
         plt.xlabel('x')
         plt.ylabel('y')
         plt.title('Ball movement during play')
