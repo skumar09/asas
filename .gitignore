@@ -1,3 +1,6 @@
-__pycache__/
+*/__pycache__/
 *.pyc
+*.mp4
 .ipynb_checkpoints/
+runs/
+weights/
