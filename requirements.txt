@@ -12,3 +12,7 @@ ultralytics==8.2.6
 IPython
 roboflow
 shapely
+openai
+pydub
+ffmpeg
+google-api-python-client
