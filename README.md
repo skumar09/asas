@@ -3,11 +3,24 @@ The AI Sports Analytics System (ASAS) integrates YOLOv8’s rapid object detecti
 
 Follow through this README to run this model in your environment.
 
-# Installation
+# Environment setup
+## Clone the repo
+To run this model in a colab or an IDE environment, one should clone this repo. For eg, to run in Google Colab, use the following commands.
 
-# Env set-up
+```
+!git clone https://github.com/skumar09/asas.git
+```
+## Install Dependencies
+Run the command below.
 
-# Running
+```
+# Navigate to ASAS root and install the requirements
+%cd /content/asas
+!pip install -r requirements.txt
+%cd /content/asas
+```
+
+# Running the Model
 Once all the necessary packages are installed and the environment is setup, the ASAS analytics engine could be run to analyze the ball possession, Trajectory or Field Goal Detection.
 ## Ball Trajectory
 This is the process of analyzing the trajectory of the ball on the court during play. This feature internally uses the results of Ball Possession & FGM modules. To run this, ASAS model's `run_analytics` method is called with `analysis_type='BALL_TRAJECTORY'`. The result of this call has a convenient method to plot the trajectory of the ball. Find the snippet below.
