@@ -4,6 +4,7 @@ The AI Sports Analytics System (ASAS) integrates YOLOv8’s rapid object detecti
 Follow through this README to run this model in your environment.
 
 # Environment setup
+In this README, the steps are given to run ASAS in Google Colab.
 ## Clone the repo
 To run this model in a colab or an IDE environment, one should clone this repo. For eg, to run in Google Colab, use the following commands.
 
