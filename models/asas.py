@@ -112,7 +112,7 @@ class ASAS(YOLO):
 
 
 
-    def run_analytics(self, video_url, local_save_path, analysis_type, display_video=False):
+    def run_analytics(self, video_url, local_save_path, analysis_type=None, display_video=False):
 
         # Initialize ASASAnalytics to hold the result of analytics
         asas_analytics = ASASAnalytics()      
@@ -124,14 +124,15 @@ class ASAS(YOLO):
         if display_video:
             media_utils.display_video(local_save_path)
 
-        self.yolo_tracking_results = self.yolo_tracking_results if self.yolo_tracking_results else self.track_video(local_save_path)
+        self.yolo_tracking_results = self.yolo_tracking_results if self.yolo_tracking_results else self.track_video(local_save_path, conf=0.5)
         asas_analytics.yolo_tracking_results = self.yolo_tracking_results
-        asas_analytics.field_goal_detection_results = self.detect_field_goal_frames(self.yolo_tracking_results)
+        asas_analytics.field_goal_detection_result = self.detect_field_goal_frames(self.yolo_tracking_results)
 
         # Extract the base filename without extension to construct output paths
         base_filename = os.path.splitext(os.path.basename(local_save_path))[0]
         avi_path = f'runs/detect/track/{base_filename}.avi'
         mp4_output_path = f'/content/tracked_output_videos/{base_filename}.mp4'
+        # mp4_output_path = f'./tracked_output_videos/{base_filename}.mp4'
         print(f"avi_path: {avi_path}")
         print(f"mp4_output_path: {mp4_output_path}")
 
@@ -171,7 +172,7 @@ class ASAS(YOLO):
 
         if analysis_type == 'BALL_TRAJECTORY':
             ball_possession_result = ball_possession_result if (ball_possession_result:=asas_analytics.ball_possession_result) else self.analyze_ball_possession(self.yolo_tracking_results)
-            ball_trajectory_result = self.analyze_ball_trajectory(self.yolo_tracking_results, ball_possession_result.bp_frame_color)
+            ball_trajectory_result = self.analyze_ball_trajectory(self.yolo_tracking_results, ball_possession_result.bp_frame_color, asas_analytics.field_goal_detection_result.fgm_frame)
 
             asas_analytics.ball_trajectory_result = ball_trajectory_result
 
@@ -194,7 +195,7 @@ class ASAS(YOLO):
         ball_possession_result = ball_possession_analyzer.analyze(yolo_tracking_results)
         return ball_possession_result
 
-    def analyze_ball_trajectory(self, yolo_tracking_results, bp_frame_color):
-        ball_trajectory_analyzer = BallTrajectoryAnalyzer(yolo_tracking_results, bp_frame_color, 313)
+    def analyze_ball_trajectory(self, yolo_tracking_results, bp_frame_color, fgm_frame):
+        ball_trajectory_analyzer = BallTrajectoryAnalyzer(yolo_tracking_results, bp_frame_color, fgm_frame)
         ball_trajectory_result = ball_trajectory_analyzer.analyze()
         return ball_trajectory_result

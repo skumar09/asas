@@ -250,7 +250,7 @@ class BallTrajectoryAnalyzer:
         offset_ball_centroid_tracker, offset_net_centroid_tracker, team_possession = self.offset_centroids_to_reference_net_centroid(ball_centroid_tracker, net_centroid_tracker)
         reference_frame_result = self.yolo_tracking_results[self.reference_frame_index]
 
-        return BallTrajectoryResult(offset_ball_centroid_tracker, offset_net_centroid_tracker, team_possession, reference_frame_result.orig_img, net_centroid_tracker[self.reference_frame_index])
+        return BallTrajectoryResult(offset_ball_centroid_tracker, offset_net_centroid_tracker, team_possession, reference_frame_result.orig_img, reference_frame_result.orig_shape, net_centroid_tracker[self.reference_frame_index], ball_centroid_tracker, net_centroid_tracker)
 
     def offset_centroids_to_reference_net_centroid(self, ball_centroid_tracker, net_centroid_tracker):
         offset_ball_centroid_tracker = []
@@ -450,6 +450,6 @@ class FieldGoalDetector:
         interesting_frames = list(map(lambda x: x[0], self.interesting_frames))
         field_goal_frame = self.field_goal_frame
 
-        print(f"Field Goal Detection\n\tP(FGM): {p_fgm}\n\tFrames: {interesting_frames}\n\tKey Frame: {field_goal_frame}")
+        print(f"Field Goal Detection\n\tP(FGM): {p_fgm}\n\tInteresting Frames: {interesting_frames}\n\tKey Frame: {field_goal_frame}")
         return FieldGoalDetectionResult(p_fgm, interesting_frames, field_goal_frame)
 

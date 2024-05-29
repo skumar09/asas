@@ -1,3 +1,5 @@
+import os
+
 import cv2
 from matplotlib import pyplot as plt
 
@@ -34,23 +36,26 @@ class BallPossessionResult:
 
 
 class BallTrajectoryResult:
-    def __init__(self, offset_ball_centroid_tracker, offset_net_centroid_tracker, team_possession,
-                 reference_frame_img, reference_net_xywh):
+    def __init__(self, offset_ball_centroid_tracker, offset_net_centroid_tracker, team_possession, reference_frame_img,
+                 reference_frame_img_shape, reference_net_xywh, raw_ball_centroid_tracker, raw_net_centroid_tracker):
         self.offset_ball_centroid_tracker = offset_ball_centroid_tracker
         self.offset_net_centroid_tracker = offset_net_centroid_tracker
         # for team in team_possession:
         self.team_possession = team_possession
         self.reference_frame_img = reference_frame_img
+        self.reference_frame_img_shape = reference_frame_img_shape
         self.reference_net_xywh = reference_net_xywh
+        self.raw_ball_centroid_tracker = raw_ball_centroid_tracker
+        self.raw_net_centroid_tracker = raw_net_centroid_tracker
 
-    def plot_ball_and_net_wrto_net_position(self, filter_negative_offsets = True):
+    def plot_ball_and_net_wrto_net_position(self, filter_negative_offsets = True, output_plot_location='output_files/ball_trajectory.png'):
         plt.figure(figsize=(30, 12))
 
         image_rgb = cv2.cvtColor(self.reference_frame_img, cv2.COLOR_BGR2RGB)
         # image_rgb = np.resize(image_rgb, (int(width), int(height), image_rgb.shape[2]))
         # print('extent -> ',extent)
         print('image_rgb.shape', image_rgb.shape)
-        plt.imshow(image_rgb, alpha=0.35)
+        plt.imshow(image_rgb, alpha=0.45)
 
         # Plot the bounding box of first net
         first_net_corners_x, first_net_corners_y = get_bounding_box_corners(self.reference_net_xywh[0], self.reference_net_xywh[1], self.reference_net_xywh[2], self.reference_net_xywh[3])
@@ -58,12 +63,14 @@ class BallTrajectoryResult:
 
         offset_ball_centroid_tracker = self.offset_ball_centroid_tracker
         team_possession = self.team_possession
+        img_height = self.reference_frame_img_shape[0]
+        img_width = self.reference_frame_img_shape[1]
         if filter_negative_offsets:
             offset_ball_centroid_tracker = []
             team_possession = []
             for i in range(len(self.offset_ball_centroid_tracker) - 1):
                 centroid = self.offset_ball_centroid_tracker[i]
-                if (centroid[0] > 0 and centroid[1] > 0):
+                if (centroid[0] > 0 and centroid[1] > 0 and centroid[1] < img_height and centroid[0] < img_width):
                     offset_ball_centroid_tracker.append(centroid)
                     team_possession.append(self.team_possession[i])
 
@@ -71,7 +78,8 @@ class BallTrajectoryResult:
         # Plot the position of ball on the field
         x_ball = [centroid[0] for centroid in offset_ball_centroid_tracker]
         y_ball = [centroid[1] for centroid in offset_ball_centroid_tracker]
-        plt.scatter(x_ball, y_ball, marker='o', color=team_possession)
+        # plt.scatter(x_ball, y_ball, marker='o', color=team_possession)
+        plt.scatter(x_ball, y_ball, marker='o', color='orangered')
 
         # Plot the position of net on the field
         x_net = [centroid[0] for centroid in self.offset_net_centroid_tracker]
@@ -81,40 +89,65 @@ class BallTrajectoryResult:
         # Plotting arrows between points
         for i in range(len(x_ball) - 1):
             plt.arrow(x_ball[i], y_ball[i], x_ball[i + 1] - x_ball[i], y_ball[i + 1] - y_ball[i],
+                      shape='full', lw=0.5, length_includes_head=True, head_width=7.5, color='seagreen')
+            # plt.arrow(x_ball[i], y_ball[i], x_ball[i + 1] - x_ball[i], y_ball[i + 1] - y_ball[i],
+            #           shape='full', lw=0.5, length_includes_head=True, head_width=7.5, color=team_possession[i])
+        plt.xlabel('x')
+        plt.ylabel('y')
+        # plt.title('Ball movement during play')
+
+        output_directory = os.path.dirname(output_plot_location)
+        os.makedirs(output_directory, exist_ok=True)
+
+        plt.savefig(output_plot_location)
+
+    def plot_raw_ball_trajectory(self, output_plot_location='output_files/raw_ball_trajectory.png'):
+        plt.figure(figsize=(30, 12))
+
+        image_rgb = cv2.cvtColor(self.reference_frame_img, cv2.COLOR_BGR2RGB)
+        # image_rgb = np.resize(image_rgb, (int(width), int(height), image_rgb.shape[2]))
+        # print('extent -> ',extent)
+        print('image_rgb.shape', image_rgb.shape)
+        plt.imshow(image_rgb, alpha=0.45)
+
+        # Plot the bounding box of first net
+        first_net_corners_x, first_net_corners_y = get_bounding_box_corners(self.reference_net_xywh[0],
+                                                                            self.reference_net_xywh[1],
+                                                                            self.reference_net_xywh[2],
+                                                                            self.reference_net_xywh[3])
+        plt.plot(first_net_corners_x, first_net_corners_y, color='red', linewidth=2)
+
+        raw_ball_centroid_tracker = self.raw_ball_centroid_tracker
+        team_possession = self.team_possession
+
+        # Plot the position of ball on the field
+        x_ball = [centroid[0] for centroid in raw_ball_centroid_tracker if len(centroid) == 4]
+        y_ball = [centroid[1] for centroid in raw_ball_centroid_tracker if len(centroid) == 4]
+
+        # team_possession = (['white'] * (len(x_ball) - 12))
+        # team_possession.extend(['blue'] * 12)
+        plt.scatter(x_ball, y_ball, marker='o', color=team_possession)
+        # plt.scatter(x_ball, y_ball, [70]*len(x_ball), marker='o', color=team_possession)
+
+        # Plot the position of net on the field
+        x_net = [centroid[0] for centroid in self.raw_net_centroid_tracker if len(centroid) == 4]
+        y_net = [centroid[1] for centroid in self.raw_net_centroid_tracker if len(centroid) == 4]
+        plt.plot(x_net, y_net, marker='v', color="red")
+
+        # Plotting arrows between points
+        for i in range(len(x_ball) - 1):
+            # plt.arrow(x_ball[i], y_ball[i], x_ball[i + 1] - x_ball[i], y_ball[i + 1] - y_ball[i],
+            #           shape='full', lw=0.5, length_includes_head=True, head_width=7.5, color='seagreen')
+            plt.arrow(x_ball[i], y_ball[i], x_ball[i + 1] - x_ball[i], y_ball[i + 1] - y_ball[i],
                       shape='full', lw=0.5, length_includes_head=True, head_width=7.5, color=team_possession[i])
         plt.xlabel('x')
         plt.ylabel('y')
-        plt.title('Ball movement during play')
+        # plt.title('Ball movement during play')
 
-    # def plot_as_is(self, plt):
-    #     global x_ball, y_ball, x_net, y_net, last_x_net, last_y_net, i
-    #
-    #     plt.figure(figsize=(12, 30))
-    #     # Plot the bounding box of first net
-    #     plt.plot(first_net_corners_x, first_net_corners_y, color='red', linewidth=2)
-    #     # Plot the position of ball on the field
-    #     x_ball = [centroid[0] for centroid in ball_centroid_tracker if len(centroid) == 4]
-    #     y_ball = [centroid[1] for centroid in ball_centroid_tracker if len(centroid) == 4]
-    #     plt.scatter(x_ball, y_ball, marker='o', color="orange")
-    #     # Plot the position of net on the field
-    #     x_net = [centroid[0] for centroid in net_centroid_tracker if len(centroid) == 4]
-    #     y_net = [centroid[1] for centroid in net_centroid_tracker if len(centroid) == 4]
-    #     plt.plot(x_net, y_net, marker='v', color="red")
-    #     last_x_net = x_net[-1]
-    #     last_y_net = y_net[-1]
-    #     plt.annotate(f'({first_x_center_net}, {first_y_center_net})', (first_x_center_net, first_y_center_net),
-    #                  textcoords="offset points", xytext=(0, 10), ha='center')
-    #     plt.annotate(f'({last_x_net}, {last_y_net})', (last_x_net, last_y_net), textcoords="offset points", xytext=(0, 10),
-    #                  ha='center')
-    #     # for (x, y) in zip(x_net, y_net):
-    #     #     plt.annotate(f'({x}, {y})', (x, y), textcoords="offset points", xytext=(0,10), ha='center')
-    #     # Plotting arrows between points
-    #     for i in range(len(x_ball) - 1):
-    #         plt.arrow(x_ball[i], y_ball[i], x_ball[i + 1] - x_ball[i], y_ball[i + 1] - y_ball[i],
-    #                   shape='full', lw=0.1, length_includes_head=True, head_width=0.0075, color='green')
-    #     plt.xlabel('x')
-    #     plt.ylabel('y')
-    #     plt.title('Ball & Net position')
+        output_directory = os.path.dirname(output_plot_location)
+        os.makedirs(output_directory, exist_ok=True)
+
+        plt.savefig(output_plot_location)
 
 
 class FieldGoalDetectionResult:
