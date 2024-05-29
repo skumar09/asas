@@ -450,6 +450,6 @@ class FieldGoalDetector:
         interesting_frames = list(map(lambda x: x[0], self.interesting_frames))
         field_goal_frame = self.field_goal_frame
 
-        print(f"Field Goal Detection\n\tP(FGM): {p_fgm}\n\tFrames: {interesting_frames}\n\tKey Frame: {field_goal_frame}")
+        print(f"Field Goal Detection\n\tP(FGM): {p_fgm}\n\tInteresting Frames: {interesting_frames}\n\tKey Frame: {field_goal_frame}")
         return FieldGoalDetectionResult(p_fgm, interesting_frames, field_goal_frame)
 
